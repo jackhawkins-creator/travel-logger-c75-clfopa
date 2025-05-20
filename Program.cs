@@ -1,3 +1,6 @@
+using TravelLogger;
+using TravelLogger.Models;
+using TravelLogger.Models.DTOs;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Http.Json;
