@@ -36,6 +36,43 @@ app.UseCors(options =>
 
 // Add all endpoints here
 
+//LOGS
+//GET all logs for a given user
+app.MapGet("/api/users/{userId}/logs", (TravelLoggerDbContext db, int userId) =>
+{
+    User user = db.Users
+        .Include(u => u.Logs)
+        .SingleOrDefault(u => u.Id == userId);
+
+    if (user == null)
+    {
+        return Results.NotFound();
+    }
+
+    List<LogDTO> userLogs = user.Logs
+        .Select(log => new LogDTO
+        {
+            Id = log.Id,
+            UserId = log.UserId,
+            CityId = log.CityId,
+            Comment = log.Comment,
+            CreatedAt = log.CreatedAt
+        }).ToList();
+
+    UserDTO userDTO = new UserDTO
+    {
+        Id = user.Id,
+        Name = user.Name,
+        Email = user.Email,
+        ImageUrl = user.ImageUrl,
+        Description = user.Description,
+        Logs = userLogs
+    };
+
+    return Results.Ok(userDTO);
+});
+
+
 //RECS
 //GET All Recs (not needed, but good for testing purposes)
 app.MapGet("/api/recommendations", (TravelLoggerDbContext db) =>

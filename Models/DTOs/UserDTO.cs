@@ -7,5 +7,6 @@ namespace TravelLogger.Models.DTOs
         public string Email { get; set; }
         public string ImageUrl { get; set; }
         public string Description { get; set; }
+        public List<LogDTO> Logs { get; set; }
     }
 }
