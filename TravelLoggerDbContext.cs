@@ -1,8 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using TravelLogger.Models;
 
-namespace TravelLogger;
-
 public class TravelLoggerDbContext : DbContext
 {
     // Define tables here

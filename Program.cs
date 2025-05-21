@@ -1,4 +1,3 @@
-using TravelLogger;
 using TravelLogger.Models;
 using TravelLogger.Models.DTOs;
 using Microsoft.EntityFrameworkCore;
@@ -36,5 +35,124 @@ app.UseCors(options =>
 });
 
 // Add all endpoints here
+
+//RECS
+//GET All Recs (not needed, but good for testing purposes)
+app.MapGet("/api/recommendations", (TravelLoggerDbContext db) =>
+{
+    return db.Recommendations
+    .Select(r => new RecommendationDTO
+    {
+        Id = r.Id,
+        UserId = r.UserId,
+        CityId = r.CityId
+    }).ToList();
+});
+
+//POST New Rec
+app.MapPost("/api/recommendations", (TravelLoggerDbContext db, Recommendation recommendation) =>
+{
+    db.Recommendations.Add(recommendation);
+    db.SaveChanges();
+    return Results.Created($"/api/recommendations/{recommendation.Id}", recommendation);
+});
+
+/*
+Input below as raw data when POSTing to test...
+{
+  "userId": 1,
+  "cityId": 2
+}
+*/
+
+//PUT Update Rec
+app.MapPut("/api/recommendations/{id}", (TravelLoggerDbContext db, int id, Recommendation recommendation) =>
+{
+    Recommendation recommendationToUpdate = db.Recommendations.SingleOrDefault(recommendation => recommendation.Id == id);
+    if (recommendationToUpdate == null)
+    {
+        return Results.NotFound();
+    }
+    recommendationToUpdate.UserId = recommendation.UserId;
+    recommendationToUpdate.CityId = recommendation.CityId;
+
+    db.SaveChanges();
+    return Results.NoContent();
+});
+
+/*
+Input below as raw data when PUTting to test...
+{
+  "userId": 2,
+  "cityId": 1
+}
+*/
+
+//DELETE Rec
+app.MapDelete("/api/recommendations/{id}", (TravelLoggerDbContext db, int id) =>
+{
+    Recommendation recommendation = db.Recommendations.SingleOrDefault(recommendation => recommendation.Id == id);
+    if (recommendation == null)
+    {
+        return Results.NotFound();
+    }
+    db.Recommendations.Remove(recommendation);
+    db.SaveChanges();
+    return Results.NoContent();
+});
+
+//GET all recs for a given city
+app.MapGet("/api/cities/{cityId}/recommendations", async (TravelLoggerDbContext db, int cityId) =>
+{
+    // Fetch the city and its recommendations
+    City city = await db.Cities
+        .Where(c => c.Id == cityId)
+        .Include(c => c.Recommendations)
+        .FirstOrDefaultAsync();
+
+    if (city == null)
+    {
+        return Results.NotFound();
+    }
+
+    // Return the city and its recommendations
+    return Results.Ok(new CityDTO
+    {
+        Id = city.Id,
+        Name = city.Name,
+        Details = city.Details,
+        Recommendations = city.Recommendations.Select(r => new RecommendationDTO
+        {
+            Id = r.Id,
+            UserId = r.UserId,
+            CityId = r.CityId
+        }).ToList()
+    });
+});
+
+//GET all upvotes for a rec
+app.MapGet("/api/recommendations/{id}", (TravelLoggerDbContext db, int id) =>
+{
+    Recommendation recommendation = db.Recommendations.SingleOrDefault(r => r.Id == id);
+
+    if (recommendation == null)
+    {
+        return Results.NotFound();
+    }
+
+    int upvoteCount = db.Upvotes.Count(u => u.RecommendationId == id);
+
+    RecommendationDTO recommendationDTO = new RecommendationDTO
+    {
+        Id = recommendation.Id,
+        UserId = recommendation.UserId,
+        CityId = recommendation.CityId,
+        UpvoteTotal = upvoteCount
+    };
+
+    return Results.Ok(recommendationDTO);
+});
+
+
 
 app.Run();
