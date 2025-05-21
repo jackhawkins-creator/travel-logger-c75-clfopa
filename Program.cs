@@ -36,6 +36,74 @@ app.UseCors(options =>
 
 // Add all endpoints here
 
+//LOGS Pt. 2
+//GET all logs for a given user
+app.MapGet("/api/users/{userId}/logs", (TravelLoggerDbContext db, int userId) =>
+{
+    User user = db.Users
+        .Include(u => u.Logs)
+        .SingleOrDefault(u => u.Id == userId);
+
+    if (user == null)
+    {
+        return Results.NotFound();
+    }
+
+    List<LogDTO> userLogs = user.Logs
+        .Select(log => new LogDTO
+        {
+            Id = log.Id,
+            UserId = log.UserId,
+            CityId = log.CityId,
+            Comment = log.Comment,
+            CreatedAt = log.CreatedAt
+        }).ToList();
+
+    UserDTO userDTO = new UserDTO
+    {
+        Id = user.Id,
+        Name = user.Name,
+        Email = user.Email,
+        ImageUrl = user.ImageUrl,
+        Description = user.Description,
+        Logs = userLogs
+    };
+
+    return Results.Ok(userDTO);
+});
+
+// GET all logs for a given city
+app.MapGet("/api/cities/{cityId}/logs", (TravelLoggerDbContext db, int cityId) =>
+{
+    City city = db.Cities
+        .Include(c => c.Logs)
+            .ThenInclude(l => l.User)
+        .FirstOrDefault(c => c.Id == cityId);
+
+    if (city == null)
+    {
+        return Results.NotFound();
+    }
+
+    List<LogDTO> logDTOs = city.Logs
+        .Select(log => new LogDTO
+        {
+            Id = log.Id,
+            UserId = log.UserId,
+            CityId = log.CityId,
+            Comment = log.Comment,
+            CreatedAt = log.CreatedAt
+        })
+        .ToList();
+
+    return Results.Ok(new
+    {
+        CityId = city.Id,
+        CityName = city.Name,
+        Logs = logDTOs
+    });
+});
+
 //RECS
 //GET All Recs (not needed, but good for testing purposes)
 app.MapGet("/api/recommendations", (TravelLoggerDbContext db) =>
