@@ -103,6 +103,74 @@ app.MapGet("/api/cities/{cityId}/logs", (TravelLoggerDbContext db, int cityId) =
         Logs = logDTOs
     });
 });
+//LOGS part 1
+// post create a new log
+app.MapPost("/api/logs", (TravelLoggerDbContext db, Log newLog) =>
+{
+    newLog.CreatedAt = DateTime.Now;
+
+    db.Logs.Add(newLog);
+    db.SaveChanges();
+
+    LogDTO logDTO = new LogDTO
+    {
+        Id = newLog.Id,
+        UserId = newLog.UserId,
+        CityId = newLog.CityId,
+        Comment = newLog.Comment,
+        CreatedAt = newLog.CreatedAt
+    };
+
+    return Results.Created($"/api/logs/{newLog.Id}", logDTO);
+});
+// example for testing: 
+/*{
+  "userId": 1,
+  "cityId": 2,
+  "comment": "Had an amazing time here!"
+}
+*/
+
+// PUT update a log
+app.MapPut("/api/logs/{id}", (TravelLoggerDbContext db, int id, Log updatedLog) =>
+{
+    Log existingLog = db.Logs.SingleOrDefault(l => l.Id == id);
+    if (existingLog == null)
+    {
+        return Results.NotFound();
+    }
+
+    existingLog.UserId = updatedLog.UserId;
+    existingLog.CityId = updatedLog.CityId;
+    existingLog.Comment = updatedLog.Comment;
+
+    db.SaveChanges();
+    return Results.NoContent();
+});
+/* example for test:
+{
+  "userId": 1,
+  "cityId": 2,
+  "comment": "Updated my log after a second visit!"
+} */
+
+// Delete delete a log by ID
+app.MapDelete("/api/logs/{id}", (TravelLoggerDbContext db, int id) =>
+{
+    Log logToDelete = db.Logs.SingleOrDefault(l => l.Id == id);
+    if (logToDelete == null)
+    {
+        return Results.NotFound();
+    }
+
+    db.Logs.Remove(logToDelete);
+    db.SaveChanges();
+    return Results.NoContent();
+});
+
+
+
+
 
 //RECS
 //GET All Recs (not needed, but good for testing purposes)
