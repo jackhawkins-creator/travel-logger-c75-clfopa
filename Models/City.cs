@@ -12,4 +12,6 @@ public class City
     [Required]
     public string Details { get; set; }
     public List<Recommendation> Recommendations { get; set; }
+    public List<Log> Logs { get; set; }
+
 }
