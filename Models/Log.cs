@@ -1,6 +1,8 @@
 using System.ComponentModel.DataAnnotations;
 
+
 namespace TravelLogger.Models;
+
 
 public class Log
 {
