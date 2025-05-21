@@ -196,5 +196,79 @@ app.MapDelete("/api/upvotes/{id}", (TravelLoggerDbContext db, int id) =>
     return Results.NoContent();
 });
 
+// Cities endpoints
+// get cities
+app.MapGet("/api/cities", (TravelLoggerDbContext db) =>
+{
+    return db.Cities
+        .Select(c => new CityDTO
+        {
+            Id = c.Id,
+            Name = c.Name,
+            Details = c.Details
+        }).ToList();
+});
+
+// Get cities details with logs, users there, and recommendations 
+app.MapGet("/api/cities/{id}", (TravelLoggerDbContext db, int id) =>
+{
+    City foundCity = db.Cities
+        .Include(c => c.Logs)
+            .ThenInclude(l => l.User)
+        .Include(c => c.Recommendations)
+        .FirstOrDefault(c => c.Id == id);
+
+
+    if (foundCity == null)
+    {
+        return Results.NotFound();
+    }
+
+    List<RecommendationDTO> recommendationDTOs = foundCity.Recommendations
+        .Select(r => new RecommendationDTO
+        {
+            Id = r.Id,
+            UserId = r.UserId,
+            CityId = r.CityId,
+            UpvoteTotal = db.Upvotes.Count(u => u.RecommendationId == r.Id)
+        })
+        .ToList();
+
+    List<LogDTO> logDTOs = foundCity.Logs
+        .Select(log => new LogDTO
+        {
+            Id = log.Id,
+            UserId = log.UserId,
+            CityId = log.CityId,
+            Comment = log.Comment,
+            CreatedAt = log.CreatedAt
+        })
+        .ToList();
+
+    List<UserDTO> userDTOs = foundCity.Logs
+        .Select(log => new UserDTO
+        {
+            Id = log.User.Id,
+            Email = log.User.Email,
+            Description = log.User.Description,
+            ImageUrl = log.User.ImageUrl,
+            Name = log.User.Name
+        })
+        .DistinctBy(u => u.Id)
+        .ToList();
+
+    CityDTO cityDTO = new CityDTO
+    {
+        Id = foundCity.Id,
+        Name = foundCity.Name,
+        Details = foundCity.Details,
+        Recommendations = recommendationDTOs,
+        Logs = logDTOs,
+        Users = userDTOs
+    };
+
+    return Results.Ok(cityDTO);
+});
+
 
 app.Run();
