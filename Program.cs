@@ -331,7 +331,12 @@ app.MapGet("/api/users/{id}", async (TravelLoggerDbContext db, int id) =>
         Email = user.Email,
         ImageUrl = user.ImageUrl,
         Description = user.Description,
-        Logs = user.Logs,
+        Logs = user.Logs.Select(log => new LogDTO {
+        Id = log.Id,
+        Comment = log.Comment,
+        CityId = log.CityId,
+        UserId = log.UserId
+    }).ToList(),
         Recommendations = user.Recommendations
     };
 
