@@ -36,6 +36,142 @@ app.UseCors(options =>
 
 // Add all endpoints here
 
+//LOGS Pt. 2
+//GET all logs for a given user
+app.MapGet("/api/users/{userId}/logs", (TravelLoggerDbContext db, int userId) =>
+{
+    User user = db.Users
+        .Include(u => u.Logs)
+        .SingleOrDefault(u => u.Id == userId);
+
+    if (user == null)
+    {
+        return Results.NotFound();
+    }
+
+    List<LogDTO> userLogs = user.Logs
+        .Select(log => new LogDTO
+        {
+            Id = log.Id,
+            UserId = log.UserId,
+            CityId = log.CityId,
+            Comment = log.Comment,
+            CreatedAt = log.CreatedAt
+        }).ToList();
+
+    UserDTO userDTO = new UserDTO
+    {
+        Id = user.Id,
+        Name = user.Name,
+        Email = user.Email,
+        ImageUrl = user.ImageUrl,
+        Description = user.Description,
+        Logs = userLogs
+    };
+
+    return Results.Ok(userDTO);
+});
+
+// GET all logs for a given city
+app.MapGet("/api/cities/{cityId}/logs", (TravelLoggerDbContext db, int cityId) =>
+{
+    City city = db.Cities
+        .Include(c => c.Logs)
+            .ThenInclude(l => l.User)
+        .FirstOrDefault(c => c.Id == cityId);
+
+    if (city == null)
+    {
+        return Results.NotFound();
+    }
+
+    List<LogDTO> logDTOs = city.Logs
+        .Select(log => new LogDTO
+        {
+            Id = log.Id,
+            UserId = log.UserId,
+            CityId = log.CityId,
+            Comment = log.Comment,
+            CreatedAt = log.CreatedAt
+        })
+        .ToList();
+
+    return Results.Ok(new
+    {
+        CityId = city.Id,
+        CityName = city.Name,
+        Logs = logDTOs
+    });
+});
+//LOGS part 1
+// post create a new log
+app.MapPost("/api/logs", (TravelLoggerDbContext db, Log newLog) =>
+{
+    newLog.CreatedAt = DateTime.Now;
+
+    db.Logs.Add(newLog);
+    db.SaveChanges();
+
+    LogDTO logDTO = new LogDTO
+    {
+        Id = newLog.Id,
+        UserId = newLog.UserId,
+        CityId = newLog.CityId,
+        Comment = newLog.Comment,
+        CreatedAt = newLog.CreatedAt
+    };
+
+    return Results.Created($"/api/logs/{newLog.Id}", logDTO);
+});
+// example for testing: 
+/*{
+  "userId": 1,
+  "cityId": 2,
+  "comment": "Had an amazing time here!"
+}
+*/
+
+// PUT update a log
+app.MapPut("/api/logs/{id}", (TravelLoggerDbContext db, int id, Log updatedLog) =>
+{
+    Log existingLog = db.Logs.SingleOrDefault(l => l.Id == id);
+    if (existingLog == null)
+    {
+        return Results.NotFound();
+    }
+
+    existingLog.UserId = updatedLog.UserId;
+    existingLog.CityId = updatedLog.CityId;
+    existingLog.Comment = updatedLog.Comment;
+
+    db.SaveChanges();
+    return Results.NoContent();
+});
+/* example for test:
+{
+  "userId": 1,
+  "cityId": 2,
+  "comment": "Updated my log after a second visit!"
+} */
+
+// Delete delete a log by ID
+app.MapDelete("/api/logs/{id}", (TravelLoggerDbContext db, int id) =>
+{
+    Log logToDelete = db.Logs.SingleOrDefault(l => l.Id == id);
+    if (logToDelete == null)
+    {
+        return Results.NotFound();
+    }
+
+    db.Logs.Remove(logToDelete);
+    db.SaveChanges();
+    return Results.NoContent();
+});
+
+
+
+
+
 //RECS
 //GET All Recs (not needed, but good for testing purposes)
 app.MapGet("/api/recommendations", (TravelLoggerDbContext db) =>
@@ -244,5 +380,121 @@ app.MapGet("/api/cities/{cityId}/users", async (TravelLoggerDbContext db, int ci
 
     return Results.Ok(userDTOs);
 });
+//UPVOTE ENDPOINTS
+//POST upvote to recommendation
+app.MapPost("/api/upvotes", (TravelLoggerDbContext db, Upvote upvote) =>
+{
+    // Validate the recommendation exists
+    Recommendation recommendation = db.Recommendations.SingleOrDefault(r => r.Id == upvote.RecommendationId);
+
+    if (recommendation == null)
+    {
+        return Results.BadRequest($"Recommendation with ID {upvote.RecommendationId} does not exist.");
+    }
+
+    // Add the upvote
+    db.Upvotes.Add(upvote);
+    db.SaveChanges();
+
+    return Results.Created($"/api/upvotes/{upvote.Id}", upvote);
+});
+
+/*
+Input below as raw data when POSTing to test...
+{
+  "recommendationId": 1
+}
+
+...Use /api/recommendations/1 endpoint to check if upvote total incremented
+*/
+
+//DELETE upvote for a recommendation
+app.MapDelete("/api/upvotes/{id}", (TravelLoggerDbContext db, int id) =>
+{
+    Upvote upvoteToDelete = db.Upvotes.SingleOrDefault(upvote => upvote.Id == id);
+    if (upvoteToDelete == null)
+    {
+        return Results.NotFound();
+    }
+
+    db.Upvotes.Remove(upvoteToDelete);
+    db.SaveChanges();
+    return Results.NoContent();
+});
+
+// Cities endpoints
+// get cities
+app.MapGet("/api/cities", (TravelLoggerDbContext db) =>
+{
+    return db.Cities
+        .Select(c => new CityDTO
+        {
+            Id = c.Id,
+            Name = c.Name,
+            Details = c.Details
+        }).ToList();
+});
+
+// Get cities details with logs, users there, and recommendations 
+app.MapGet("/api/cities/{id}", (TravelLoggerDbContext db, int id) =>
+{
+    City foundCity = db.Cities
+        .Include(c => c.Logs)
+            .ThenInclude(l => l.User)
+        .Include(c => c.Recommendations)
+        .FirstOrDefault(c => c.Id == id);
+
+
+    if (foundCity == null)
+    {
+        return Results.NotFound();
+    }
+
+    List<RecommendationDTO> recommendationDTOs = foundCity.Recommendations
+        .Select(r => new RecommendationDTO
+        {
+            Id = r.Id,
+            UserId = r.UserId,
+            CityId = r.CityId,
+            UpvoteTotal = db.Upvotes.Count(u => u.RecommendationId == r.Id)
+        })
+        .ToList();
+
+    List<LogDTO> logDTOs = foundCity.Logs
+        .Select(log => new LogDTO
+        {
+            Id = log.Id,
+            UserId = log.UserId,
+            CityId = log.CityId,
+            Comment = log.Comment,
+            CreatedAt = log.CreatedAt
+        })
+        .ToList();
+
+    List<UserDTO> userDTOs = foundCity.Logs
+        .Select(log => new UserDTO
+        {
+            Id = log.User.Id,
+            Email = log.User.Email,
+            Description = log.User.Description,
+            ImageUrl = log.User.ImageUrl,
+            Name = log.User.Name
+        })
+        .DistinctBy(u => u.Id)
+        .ToList();
+
+    CityDTO cityDTO = new CityDTO
+    {
+        Id = foundCity.Id,
+        Name = foundCity.Name,
+        Details = foundCity.Details,
+        Recommendations = recommendationDTOs,
+        Logs = logDTOs,
+        Users = userDTOs
+    };
+
+    return Results.Ok(cityDTO);
+});
+
 
 app.Run();

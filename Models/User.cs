@@ -15,6 +15,7 @@ public class User
     public string ImageUrl { get; set; }
     [Required]
     public string Description { get; set; }
+
     public List<Log> Logs { get; set; }
     public List<Recommendation> Recommendations { get; set; }
 }
